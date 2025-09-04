@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simulateur de tableau d'amortissement</title>
+  <style>
+    :root{--bg:#f6f8fb;--card:#fff;--accent:#0f62fe;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; padding:20px; background:var(--bg); color:#111}
+    .wrap{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(15,23,42,0.06);}
+    form .row{display:flex;gap:12px;margin-bottom:8px}
+    label{font-size:13px;color:var(--muted)}
+    input,select{padding:8px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px;width:100%}
+    button{background:var(--accent);color:white;border:0;padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer}
+    button.ghost{background:#eef2ff;color:var(--accent);border:1px solid rgba(15,98,254,0.12)}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:right}
+    th{background:#fbfdff;text-align:right;font-weight:700}
+    td:first-child,th:first-child{text-align:left}
+    .small{font-size:12px;color:var(--muted)}
+    .muted{color:var(--muted)}
+    .toast{position:fixed;right:20px;bottom:20px;background:#111;color:white;padding:10px 14px;border-radius:10px;opacity:0.95}
+  
+    /* ==== BTS Bank brand upgrade ==== */
+    :root{
+      --bts-primary:#0f62fe;        /* deep blue */
+      --bts-primary-2:#14b8a6;      /* teal accent */
+      --bts-text:#0b1220;
+      --bts-subtle:#64748b;
+    }
+    body{background:var(--bg); color:var(--bts-text)}
+    .brandbar{
+      background:linear-gradient(90deg,var(--bts-primary),var(--bts-primary-2));
+      border-radius:16px;
+      padding:14px 16px;
+      color:white;
+      box-shadow:0 10px 24px rgba(2,6,23,0.18);
+      display:flex; align-items:center; gap:12px;
+      margin-bottom:16px;
+    }
+    .brand-logo-img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      background-color: white;
+      padding: 4px;
+      border-radius: 8px;
+    }
+    .brand-name{ font-size:18px; font-weight:700; letter-spacing:0.3px }
+    .brand-sub{ font-size:12px; opacity:0.9 }
+    header h1{ font-size:20px; margin:0 }
+    .header-wrap{ display:flex; flex-direction:column; gap:10px }
+    @media (min-width:700px){
+      .header-wrap{ flex-direction:row; align-items:center; justify-content:space-between }
+    }
+    .tag{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px; font-size:12px;
+      background:#eef2ff; color:var(--bts-primary); border:1px solid rgba(15,98,254,.2);
+    }
+    .watermark{
+      margin-top:16px; font-size:12px; color:var(--bts-subtle);
+    }
+    /* table polish */
+    table{border-radius:12px; overflow:hidden}
+    thead th{ position:sticky; top:0; z-index:1 }
+    tr:hover td{ background:#fafcff }
+    /* print tweaks */
+    @media print{
+      .brandbar{ border-radius:0; margin-bottom:8px }
+      .card{ box-shadow:none }
+      button, .toast{ display:none !important }
+    }
+
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="header-wrap">
+      <div class="brandbar">
+        <img src="logo_bts_officiel.png" alt="BTS Bank" class="brand-logo-img" />
+        <div>
+          <div class="brand-name">BTS Bank — Banque Tunisienne de Solidarité</div>
+          <div class="brand-sub">Tunisie • Simulation de tableau d’amortissement</div>
+        </div>
+      </div>
+      <div>
+        <h1>Simulateur de tableau d'amortissement</h1>
+        <div class="tag" title="Informations indicatives">
+          <span>Non officiel / À titre indicatif</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <form id="sim-form" onsubmit="return false">
+            <div class="row">
+              <div style="flex:1">
+                <label>Montant du prêt</label>
+                <input type="number" id="amount" step="0.01" min="0" value="200000" />
+              </div>
+              <div style="width:150px">
+                <label>Taux annuel (%)</label>
+                <input type="number" id="rate" step="0.001" min="0" value="2.5" />
+              </div>
+              <div style="width:180px">
+                <label>Type de taux</label>
+                <select id="rate-type">
+                  <option value="prop">Proportionnel</option>
+                  <option value="actu">Actuariel</option>
+                </select>
+              </div>
+              <div style="width:120px">
+                <label>Années</label>
+                <input type="number" id="years" step="1" min="0" value="20" />
+              </div>
+              <div style="width:120px">
+                <label>Mois</label>
+                <input type="number" id="months" step="1" min="0" max="11" value="0" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div style="flex:1">
+                <label>Fréquence</label>
+                <select id="freq">
+                  <option value="12">Mensuelle</option>
+                  <option value="4">Trimestrielle</option>
+                  <option value="1">Annuelle</option>
+                </select>
+              </div>
+              <div style="width:150px">
+                <label>Date de déblocage</label>
+                <input type="date" id="disbursement-date" />
+              </div>
+              <div style="width:150px">
+                <label>1ère échéance</label>
+                <input type="date" id="start-date" />
+              </div>
+              <div style="width:120px">
+                <label>Paiement supplémentaire</label>
+                <input type="number" id="extra" step="0.01" min="0" value="0" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button id="calc">Calculer</button>
+              <button id="export" class="ghost" type="button">Exporter CSV</button>
+              <button id="print" class="ghost" type="button">Imprimer</button>
+              <a href="archives.php" class="ghost" style="display:flex;align-items:center;text-decoration:none;padding:10px 14px;border-radius:8px;background:#eef2ff;color:#0f62fe;font-weight:600;cursor:pointer">Voir les archives</a>
+            </div>
+          </form>
+
+          <div style="margin-top:14px">
+            <div class="small">Récapitulatif</div>
+            <div style="display:flex;gap:14px;margin-top:8px">
+              <div class="card" style="padding:10px;flex:1;text-align:center">
+                <div class="small muted">Paiement périodique</div>
+                <div id="periodic" style="font-weight:700;font-size:18px;margin-top:6px">-</div>
+              </div>
+              <div class="card" style="padding:10px;width:170px;text-align:center">
+                <div class="small muted">Coût total des intérêts</div>
+                <div id="total-interest" style="font-weight:700;font-size:16px;margin-top:6px">-</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulaire d'archivage avec les nouveaux champs -->
+          <form method="POST" action="archiver.php" id="archive-form" style="margin-top:16px">
+            <div class="row">
+              <div style="flex:1">
+                <label>Nom</label>
+                <input type="text" name="nom" id="nomInput" required>
+              </div>
+              <div style="flex:1">
+                <label>Prénom</label>
+                <input type="text" name="prenom" id="prenomInput" required>
+              </div>
+              <div style="width:150px">
+                <label>CIN</label>
+                <input type="text" name="cin" id="cinInput" required>
+              </div>
+            </div>
+            <input type="hidden" name="montant" id="montantInput">
+            <input type="hidden" name="taux" id="tauxInput">
+            <input type="hidden" name="duree" id="dureeInput">
+            <input type="hidden" name="mensualite" id="mensualiteInput">
+            <button type="submit" class="ghost"> Archiver cette simulation</button>
+          </form>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <h3 style="margin:0;font-size:15px">Tableau d'amortissement</h3>
+          <div style="overflow:auto;margin-top:12px;max-height:520px">
+            <table id="amort-table">
+              <thead>
+                <tr>
+                  <th>Période</th>
+                  <th>Date</th>
+                  <th>Capital restant</th>
+                  <th>Paiement</th>
+                  <th>Intérêt</th>
+                  <th>Amortissement</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    
+    <div class="watermark"> 2025 — BTS Bank Simulateur .par si wassim  </div>
+  </div>
+
+<script>
+const fmt = (v) => Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function computeSchedule({amount,annualRate,periodsPerYear,years,months,disbDate,startDate,extraPerPeriod,rateType}){
+  const totalYears = years + (months/12);
+  const n = Math.round(periodsPerYear*totalYears);
+
+  let r;
+  if(rateType==="actu"){
+    r = Math.pow(1+annualRate/100,1/periodsPerYear)-1;
+  } else {
+    r = annualRate/100/periodsPerYear;
+  }
+
+  let payment;
+  if(r===0){ payment = amount / n; }
+  else{ payment = amount * (r / (1 - Math.pow(1 + r, -n))); }
+  payment = Number((payment + (extraPerPeriod||0)).toFixed(2));
+
+  const rows = [];
+  let balance = Number(amount);
+  let totalInterest = 0;
+
+  let disb = disbDate ? new Date(disbDate) : new Date();
+  let date = startDate ? new Date(startDate) : new Date();
+
+  rows.push({
+    period: 0,
+    date: new Date(disb),
+    balance: balance,
+    payment: 0,
+    interest: 0,
+    principal: 0
+  });
+
+  for(let i=1;i<=n && balance>0.005;i++){
+    const interest = Number((balance * r).toFixed(10));
+    let principal = Number((payment - interest).toFixed(10));
+    if(principal > balance){ principal = balance; }
+    const actualPayment = Number((principal + interest).toFixed(2));
+    balance = Number((balance - principal).toFixed(10));
+    totalInterest += interest;
+
+    rows.push({
+      period: i,
+      date: new Date(date),
+      balance: Math.max(0,Number(balance.toFixed(2))),
+      payment: actualPayment,
+      interest: Number(interest.toFixed(2)),
+      principal: Number(principal.toFixed(2))
+    });
+
+    if(periodsPerYear===12){ date.setMonth(date.getMonth()+1); }
+    else if(periodsPerYear===4){ date.setMonth(date.getMonth()+3); }
+    else{ date.setFullYear(date.getFullYear()+1); }
+  }
+
+  return {payment: Number(payment.toFixed(2)),rows,totalInterest: Number(totalInterest.toFixed(2))};
+}
+
+
+const amountEl = document.getElementById('amount');
+const rateEl = document.getElementById('rate');
+const rateTypeEl = document.getElementById('rate-type');
+const yearsEl = document.getElementById('years');
+const monthsEl = document.getElementById('months');
+const freqEl = document.getElementById('freq');
+const disbEl = document.getElementById('disbursement-date');
+const startEl = document.getElementById('start-date');
+const extraEl = document.getElementById('extra');
+const calcBtn = document.getElementById('calc');
+const exportBtn = document.getElementById('export');
+const printBtn = document.getElementById('print');
+const tableBody = document.querySelector('#amort-table tbody');
+const periodicEl = document.getElementById('periodic');
+const totalInterestEl = document.getElementById('total-interest');
+
+if(!disbEl.value){ const d = new Date(); disbEl.value = d.toISOString().slice(0,10); }
+if(!startEl.value){ const d = new Date(); d.setMonth(d.getMonth()+1); startEl.value = d.toISOString().slice(0,10); }
+
+function renderRows(rows){
+  tableBody.innerHTML = '';
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.period}</td><td>${r.date.toISOString().slice(0,10)}</td><td>${fmt(r.balance)}</td><td>${fmt(r.payment)}</td><td>${fmt(r.interest)}</td><td>${fmt(r.principal)}</td>`;
+    tableBody.appendChild(tr);
+  });
+}
+
+let latestResult = null;
+
+calcBtn.addEventListener('click',()=>{
+  const inputs = {
+    amount: Number(amountEl.value||0),
+    annualRate: Number(rateEl.value||0),
+    periodsPerYear: Number(freqEl.value||12),
+    years: Number(yearsEl.value||0),
+    months: Number(monthsEl.value||0),
+    disbDate: disbEl.value,
+    startDate: startEl.value,
+    extraPerPeriod: Number(extraEl.value||0),
+    rateType: rateTypeEl.value
+  };
+  if(inputs.amount<=0 || (inputs.years<=0 && inputs.months<=0)){ alert('Vérifiez le montant et la durée.'); return; }
+  const res = computeSchedule(inputs);
+  latestResult = { inputs, res };
+  renderRows(res.rows);
+  periodicEl.textContent = fmt(res.payment);
+  totalInterestEl.textContent = fmt(res.totalInterest);
+
+  // Remplir le formulaire d'archivage
+  document.getElementById("montantInput").value = inputs.amount;
+  document.getElementById("tauxInput").value = inputs.annualRate;
+  document.getElementById("dureeInput").value = (inputs.years*12 + inputs.months);
+  document.getElementById("mensualiteInput").value = res.payment;
+});
+
+exportBtn.addEventListener('click', ()=>{
+  if(!latestResult){ alert('Calculez la simulation avant d’exporter.'); return; }
+  const rows = latestResult.res.rows;
+  const header = ['Période','Date','Capital restant','Paiement','Intérêt','Amortissement'];
+  const csv = [header.join(',')].concat(rows.map(r=>[r.period, r.date.toISOString().slice(0,10), r.balance, r.payment, r.interest, r.principal].join(','))).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tableau_amortissement.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+printBtn.addEventListener('click', ()=>{ window.print(); });
+</script>
+</body>
+</html>
